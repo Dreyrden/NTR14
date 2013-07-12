@@ -8,6 +8,7 @@ import math
 import matplotlib.pyplot as plt
 #import sys
 from MASS_ZBO_SA import calc_mass
+import itertools
 
 '-------------------------Function Definitions---------------------------------------------'
 'Function Generates a list of delta-Vs between a minim and maximum value'
@@ -275,7 +276,7 @@ def fuelmassc(diameterlist,inpudict):
 	'''
 	
 	print('Calculating mass of fuels for given payload mass and delta v...')
-	
+	 
 	datalist = []
 	rlist = importrocketdata()
 	
@@ -287,15 +288,40 @@ def fuelmassc(diameterlist,inpudict):
 		
 		if (cyllength > 0) and (fuelmass is not 0):
 			clist = []
+			onelist = []			
+
+
+
+			#Sort Launch Vehicles, Top 5 
+			n=1
+			while n <= inpudict['maxlv']:
+				iterlist = list(itertools.combinations_with_replacement(range(len(rlist)),n))
+				for x in iterlist:
+					mass = 0
+					cost = 0
+					tlist = []
+					for i in x:
+						mass = mass + rlist[i][3]
+						cost = cost + rlist[i][4]
+						tlist.append(rlist[i])
+					if (newsystemass-inpudict['structuremass']) < mass:	
+						parlist = [n,cost,tlist]
+						print(parlist)
+						if parlist[0] == 1:
+							onelist.append(parlist)
+						else:
+							clist.append(parlist)
+				n = n + 1
+
 			
-			for a in range(len(rlist)):
-				if (newsystemass-inpudict['structuremass']) < rlist[a][3]:
-					clist.append(rlist[a])
-			
-			clist = sorted(clist, key=lambda x: x[4])
-			
+			onelist = sorted(onelist, key=lambda x: x[1])
+			clist = sorted(clist, key=lambda x: x[1])
+			clist = clist[0:9]
+			clist = onelist + clist
+			print(clist)
+
 			datalist.append([inpudict['deltav'], inpudict['payloadmass'], newsystemass, inpudict['structuremass'], 
-				Mzbo, Marray, fuelmass, tankmass, ellipmass, cylmass, 
+				Mzbo, Marray, fuelmass, tankmass, ellipmass, cylmass,
 				intradius, extradius, totalthickness, ellipthick, cylthick, 
 				ellipheight, cyllength, totlength, totalsa, clist])
 	
@@ -329,7 +355,7 @@ def savefueldata(testfuel,tformat=0,outputfile='output.dat'):
 			string3 = ''.join('\t|Total Mass: ' + str(round(testfuel[a][2],2)) + 'kg\n')
 			string4 = ''.join('\t\t|Payload Mass: ' + str(round(testfuel[a][1],2)) + ' kg\n')
 			string5 = ''.join('\t\t|NTR Mass: ' + str(round(testfuel[a][3],2)) + ' kg\n')
-			string6 = ''.join('\t\t|Fuel Tank Mass: ' + str(round((testfuel[a][1]+testfuel[a][4]+testfuel[a][5]),2)) + ' kg\n')
+			string6 = ''.join('\t\t|Fuel Tank Mass: ' + str(round((testfuel[a][7]+testfuel[a][4]+testfuel[a][5]),2)) + ' kg\n')
 			string7 = ''.join('\t\t\t|Solar Array Mass: ' + str(round(testfuel[a][5])) + ' kg\n')
 			string8 = ''.join('\t\t\t|ZBO System Mass: ' + str(round(testfuel[a][4])) + ' kg\n')
 			string9 = ''.join('\t\t\t|Tank Structure Mass: ' + str(round(testfuel[a][7])) + ' kg\n')
@@ -363,10 +389,19 @@ def savefueldata(testfuel,tformat=0,outputfile='output.dat'):
 			f.write(stringi)
 			f.write('Launch Vehicles:\n')
 			for x in range(len(testfuel[a][19])):
-				string = ''.join('\t' + str(testfuel[a][19][x][0]) + ' ' + str(testfuel[a][19][x][1]) + ':\t' + str(testfuel[a][19][x][3]) + '\t' + str(testfuel[a][19][x][4]) + '\n')
+				string = ''.join('\t' + str(testfuel[a][19][x][0]) + ' ' + str(testfuel[a][19][x][1]))
 				f.write(string)
-			f.write('\n')
-
+				f.write('\n')
+				if testfuel[a][19][x][0] == 1:
+					string = ''.join('\t\t' + str(testfuel[a][19][x][2][0][0]) + ' ' + str(testfuel[a][19][x][2][0][1]) + ':\t' + 
+						str(testfuel[a][19][x][2][0][3]) + '\t' + str(testfuel[a][19][x][2][0][4]) + '\n')
+					f.write(string)
+					#f.write('\n')
+				else: 
+					for g in range(len(testfuel[a][19][x][2])):
+						string = ''.join('\t\t' + str(testfuel[a][19][x][2][g][0]) + ' ' + str(testfuel[a][19][x][2][g][1]) + ':\t' +
+							str(testfuel[a][19][x][2][g][3]) + '\t' + str(testfuel[a][19][x][2][g][4]) + '\n')
+						f.write(string)
 			f.write('--------------------------------------------------------------------------------------\n')
 	else:
 		for a in range(len(testfuel)):
@@ -401,15 +436,16 @@ def importrocketdata():
 #sys.stdout = open('file.log', 'w')
 
 #Main Input Deck
-inpudict = {'deltav':2.1,
-			'payloadmass':6400,
-			'days':240,
+inpudict = {'deltav':4.2,
+			'payloadmass':3000,
+			'days':288,
 			'Isp':900,
 			'structuremass':4000,
-			'mlilayers':60,
-			'ZBO':0,
-			'spow':1000,
-			'tloss':0}
+			'mlilayers':90,
+			'ZBO':1,
+			'spow':500,
+			'tloss':0,
+			'maxlv':2}
 
 #Input Deck for Iterative Generation Fuctions
 iterdict = {'mindiam': 		1,
