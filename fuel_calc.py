@@ -5,8 +5,9 @@ Created on 14 Jun 2013
 '''
 
 import math
-import matplotlib.pyplot as plt
-#import sys
+import numpy
+import scipy.interpolate
+import matplotlib as plt
 from MASS_ZBO_SA import calc_mass
 import itertools
 
@@ -219,7 +220,7 @@ def sconvergemass(inpudict,diameter):
 	
 	#Calculate First Guess Fuelmasss and Volume
 	#*1.03 includes ullage,1.15 includes 15% error margin (and for propellant cooldown)
-	fuelmass = ((systemmass*(math.exp((deltav*1000)/(isp*9.81))-1))*1.03)*1.15
+	fuelmass = ((systemmass*(math.exp((deltav*1000)/(isp*9.81))-1))*1.03)*1.15 + inpudict['cdwnmas']
 	volume = fuelmass/dlh2
 	
 	#Calculate fuel Geometry from first guess
@@ -227,7 +228,10 @@ def sconvergemass(inpudict,diameter):
 	
 	#Calculate ZBO & Power System Masses
 	(Marray,Mzbo,loss) = calc_mass(totalsa,inpudict['mlilayers'],inpudict['ZBO'],inpudict['days'],inpudict['spow'])
-	masstank = masstank + Marray + Mzbo
+	if inpudict['ZBO'] == 1:
+		masstank = masstank + Marray + Mzbo
+	else:
+		masstank = masstank + Marray + Mzbo + loss
 
 	lasttankmass = tankmass
 	tankmass = masstank
@@ -238,13 +242,16 @@ def sconvergemass(inpudict,diameter):
 	while ((tankmass-lasttankmass) > 1) and (inter < 100) :
 		inter = inter + 1
 		systemmass = payloadmass + structuremass + tankmass	
-		fuelmass = ((systemmass*(math.exp((deltav*1000)/(isp*9.81))-1))*1.03)*1.15
+		fuelmass = ((systemmass*(math.exp((deltav*1000)/(isp*9.81))-1))*1.03)*1.15 + inpudict['cdwnmas']
 		volume = fuelmass/dlh2
 		(masstank,ellipmass,cylmass,intradius,extradius,totalthickness,ellipthick,cylthick,ellipheight,cyllength,totlength,totalsa) = tank_geometryc(volume,diameter,inpudict)
 		
 		#Calculate ZBO & Power System Masses
 		(Marray,Mzbo,loss) = calc_mass(totalsa,inpudict['mlilayers'],inpudict['ZBO'],inpudict['days'],inpudict['spow'])
-		masstank = masstank + Marray + Mzbo
+		if inpudict['ZBO'] == 1:
+			masstank = masstank + Marray + Mzbo
+		else:
+			masstank = masstank + Marray + Mzbo + loss
 
 		lasttankmass = tankmass	
 		tankmass = masstank
@@ -257,6 +264,7 @@ def sconvergemass(inpudict,diameter):
 		return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 	else: 
 		print('Converged.\n')
+		print(loss)
 		newsystemass = payloadmass + structuremass + tankmass + fuelmass
 		tankmass = tankmass - (Mzbo + Marray)
 		return newsystemass, Mzbo, Marray, fuelmass, tankmass, ellipmass, cylmass, intradius, extradius, totalthickness, ellipthick, cylthick, ellipheight, cyllength, totlength, totalsa  
@@ -429,32 +437,56 @@ def importrocketdata():
 
 	return srlist
 
+def cooldownread():
+	f = open('cooldown','r')
+	xewlist = []
+	yewlist = []
+
+	for line in f:
+		x, y = (float(s) for s in line.split(','))
+		xewlist.append(x)
+		yewlist.append(y)
+
+	xarray = numpy.asarray(xewlist)
+	yarray = numpy.asarray(yewlist)
+
+	func = scipy.interpolate.interp1d(xarray,yarray)
+
+	return func
+
+
 
 '-------------------------Main-------------------------------------------------------------'		
 
 
 #sys.stdout = open('file.log', 'w')
 
+func = cooldownread()
+
 #Main Input Deck
-inpudict = {'deltav':4.2,
-			'payloadmass':3000,
-			'days':288,
+inpudict = {'deltav':2.1,
+			'payloadmass':9900,
+			'days':0,
 			'Isp':900,
-			'structuremass':4000,
+			'structuremass':4500,
 			'mlilayers':90,
-			'ZBO':1,
-			'spow':500,
+			'ZBO':0,
+			'spow':0,
 			'tloss':0,
-			'maxlv':2}
+			'maxlv':2,
+			'cooldown':1,
+			'cdwnmas':func(50)}
+
 
 #Input Deck for Iterative Generation Fuctions
-iterdict = {'mindiam': 		1,
+iterdict = {'mindiam': 		2,
 			'maxdiam':		10,
 			'stepdiam': 	0.5}
 
 diameterlist = gendeltav(iterdict['mindiam'],iterdict['maxdiam'],iterdict['stepdiam'])
-
+#diameterlist = [3.4]
 
 'Perform Operations'
 testfuel = fuelmassc(diameterlist,inpudict)
 savefueldata(testfuel,1)
+
