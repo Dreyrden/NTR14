@@ -190,14 +190,58 @@ def tank_geometryc(volume,diameter,inpudict):
 		totalthickness = 25.4 + tc + inpudict['mlilayers']*1.243
 	else:
 		totalthickness = 25.4 + te + inpudict['mlilayers']*1.243
-	
-	extradius = (a + (totalthickness/1000))
 
 	#Return Important Values
-	return Wt,We,Wc,a,extradius,totalthickness,te1,tc,b,lengthc,totlength,SA
+	return Wt,We,Wc,a,a + (totalthickness/1000),totalthickness,te1,tc,b,lengthc,totlength,SA
+
+'Function Calculates the mass of a spherical fuel tank'
+def tank_geometrys(volume,inpudict):
+	#Density of propellant (e.g. Aluminium-Lithium 2195)
+	density = 2685
+	
+	#Welding Efficiency
+	ew = 0.6
+	
+	#Ultimate Tensile Strength
+	Fu = 447000000
+	#Fu = 447000000*0.9
+	#Yield Strength
+	Fy = 312000000
+	#Fy = 312000000*0.9
+	
+	#Maximum Operating Pressure
+	pt = 230000
+
+	#Max Working Stress 1
+	Sw1 = Fy/1.33
+	
+	#Max Working Stress 2
+	Sw2 = Fu/1.65
+	
+	#Pick the lowest Max Working Stress
+	if Sw1 < Sw2:
+		Sw = Sw1
+	else:
+		Sw = Sw2
+
+	#radius = math.pow(((volume*3)/(4*math.pi())),1/3) 
+	radius = math.pow((volume*3)/(4*math.pi),1/3)
+	
+	wallthickness = (pt*radius)/(2*Sw*ew)
+	
+	totalthickness = 25.4 + wallthickness + inpudict['mlilayers']*1.243
+	
+	mass = (4*math.pi*math.pow(radius,2)*wallthickness*density)
+	
+	SA = 4*math.pi*math.pow(radius,2)
+	
+	Ws = SA*(0.78+0.015*inpudict['mlilayers'])
+	Wt = Ws+mass
+
+	return Wt,0,0,radius,radius+(totalthickness/1000),totalthickness,0,0,0,0,0,SA
 
 'Function used by fuelmassc to iterate through fuel/tank mass'
-def sconvergemass(inpudict,diameter):
+def sconvergemass(inpudict,diameter,config):
 	#Density of Liquid Hydrogen
 	dlh2 = 70.85
 	
@@ -224,8 +268,13 @@ def sconvergemass(inpudict,diameter):
 	volume = fuelmass/dlh2
 	
 	#Calculate fuel Geometry from first guess
-	(masstank,ellipmass,cylmass,intradius,extradius,totalthickness,ellipthick,cylthick,ellipheight,cyllength,totlength,totalsa) = tank_geometryc(volume,diameter,inpudict)
-	
+	if config == 'cyl':
+		(masstank,ellipmass,cylmass,intradius,extradius,totalthickness,ellipthick,cylthick,ellipheight,cyllength,totlength,totalsa) = tank_geometryc(volume,diameter,inpudict)
+	elif config == 'sph':
+		(masstank,ellipmass,cylmass,intradius,extradius,totalthickness,ellipthick,cylthick,ellipheight,cyllength,totlength,totalsa) = tank_geometrys(volume,inpudict)
+	else:
+		print('error')
+
 	#Calculate ZBO & Power System Masses
 	(Marray,Mzbo,loss) = calc_mass(totalsa,inpudict['mlilayers'],inpudict['ZBO'],inpudict['days'],inpudict['spow'])
 	if inpudict['ZBO'] == 1:
@@ -244,8 +293,14 @@ def sconvergemass(inpudict,diameter):
 		systemmass = payloadmass + structuremass + tankmass	
 		fuelmass = ((systemmass*(math.exp((deltav*1000)/(isp*9.81))-1))*1.03)*1.15 + inpudict['cdwnmas']
 		volume = fuelmass/dlh2
-		(masstank,ellipmass,cylmass,intradius,extradius,totalthickness,ellipthick,cylthick,ellipheight,cyllength,totlength,totalsa) = tank_geometryc(volume,diameter,inpudict)
 		
+		if config == 'cyl':
+			(masstank,ellipmass,cylmass,intradius,extradius,totalthickness,ellipthick,cylthick,ellipheight,cyllength,totlength,totalsa) = tank_geometryc(volume,diameter,inpudict)
+		elif config == 'sph':
+			(masstank,ellipmass,cylmass,intradius,extradius,totalthickness,ellipthick,cylthick,ellipheight,cyllength,totlength,totalsa) = tank_geometrys(volume,inpudict)
+		else:
+			print('error')
+	
 		#Calculate ZBO & Power System Masses
 		(Marray,Mzbo,loss) = calc_mass(totalsa,inpudict['mlilayers'],inpudict['ZBO'],inpudict['days'],inpudict['spow'])
 		if inpudict['ZBO'] == 1:
@@ -269,7 +324,41 @@ def sconvergemass(inpudict,diameter):
 		tankmass = tankmass - (Mzbo + Marray)
 		return newsystemass, Mzbo, Marray, fuelmass, tankmass, ellipmass, cylmass, intradius, extradius, totalthickness, ellipthick, cylthick, ellipheight, cyllength, totlength, totalsa  
 
-'Returns data'
+'Function that finds all possible launch vehicles up untill a maximum'
+def sortlv(inpudict,rlist,newsystemass):
+	clist = []
+	onelist = []			
+
+	#Sort Launch Vehicles, Top 5 
+	n=1
+	while n <= inpudict['maxlv']:
+		iterlist = list(itertools.combinations_with_replacement(range(len(rlist)),n))
+		for x in iterlist:
+			mass = 0
+			cost = 0
+			tlist = []
+			for i in x:
+				mass = mass + rlist[i][3]
+				cost = cost + rlist[i][4]
+				tlist.append(rlist[i])
+			if (newsystemass-inpudict['structuremass']) < mass:	
+				parlist = [n,cost,tlist]
+				print(parlist)
+				if parlist[0] == 1:
+					onelist.append(parlist)
+				else:
+					clist.append(parlist)
+		n = n + 1
+
+				
+	onelist = sorted(onelist, key=lambda x: x[1])
+	clist = sorted(clist, key=lambda x: x[1])
+	clist = clist[0:9]
+	clist = onelist + clist
+
+	return clist
+
+'Cycles through cylinders and a sphere, sorts data'
 def fuelmassc(diameterlist,inpudict):
 	'''Calculates the fuel masses based upon the ideal rocket equation. Uses 
 	input of a list of deltav's and a list of payloadmass of equal length. These
@@ -292,47 +381,29 @@ def fuelmassc(diameterlist,inpudict):
 		(newsystemass, Mzbo, Marray, fuelmass, 
 			tankmass, ellipmass, cylmass, intradius, extradius, 
 			totalthickness, ellipthick, cylthick, ellipheight, 
-			cyllength, totlength, totalsa) = sconvergemass(inpudict,i)  
+			cyllength, totlength, totalsa) = sconvergemass(inpudict,i,'cyl')  
 		
-		if (cyllength > 0) and (fuelmass is not 0):
-			clist = []
-			onelist = []			
-
-
-
-			#Sort Launch Vehicles, Top 5 
-			n=1
-			while n <= inpudict['maxlv']:
-				iterlist = list(itertools.combinations_with_replacement(range(len(rlist)),n))
-				for x in iterlist:
-					mass = 0
-					cost = 0
-					tlist = []
-					for i in x:
-						mass = mass + rlist[i][3]
-						cost = cost + rlist[i][4]
-						tlist.append(rlist[i])
-					if (newsystemass-inpudict['structuremass']) < mass:	
-						parlist = [n,cost,tlist]
-						print(parlist)
-						if parlist[0] == 1:
-							onelist.append(parlist)
-						else:
-							clist.append(parlist)
-				n = n + 1
-
+		if (cyllength >= 0) and (fuelmass is not 0):
 			
-			onelist = sorted(onelist, key=lambda x: x[1])
-			clist = sorted(clist, key=lambda x: x[1])
-			clist = clist[0:9]
-			clist = onelist + clist
-			print(clist)
-
+			clist = sortlv(inpudict,rlist,newsystemass)
+			
 			datalist.append([inpudict['deltav'], inpudict['payloadmass'], newsystemass, inpudict['structuremass'], 
 				Mzbo, Marray, fuelmass, tankmass, ellipmass, cylmass,
 				intradius, extradius, totalthickness, ellipthick, cylthick, 
 				ellipheight, cyllength, totlength, totalsa, clist])
-	
+
+	(newsystemass, Mzbo, Marray, fuelmass, 
+			tankmass, ellipmass, cylmass, intradius, extradius, 
+			totalthickness, ellipthick, cylthick, ellipheight, 
+			cyllength, totlength, totalsa) = sconvergemass(inpudict,i,'sph')
+
+	clist = sortlv(inpudict,rlist,newsystemass)
+
+	datalist.append([inpudict['deltav'], inpudict['payloadmass'], newsystemass, inpudict['structuremass'], 
+				Mzbo, Marray, fuelmass, tankmass, ellipmass, cylmass,
+				intradius, extradius, totalthickness, ellipthick, cylthick, 
+				ellipheight, cyllength, totlength, totalsa, clist])
+		
 	datalist = sorted(datalist, key=lambda x: x[2])
 
 	return datalist
@@ -437,6 +508,7 @@ def importrocketdata():
 
 	return srlist
 
+'Function Reads in Cooldown Hydrogen Values'
 def cooldownread():
 	f = open('cooldown','r')
 	xewlist = []
@@ -472,7 +544,6 @@ inpudict = {'deltav':2.1,
 			'mlilayers':90,
 			'ZBO':0,
 			'spow':0,
-			'tloss':0,
 			'maxlv':2,
 			'cooldown':1,
 			'cdwnmas':func(50)}
