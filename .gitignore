@@ -34,5 +34,6 @@ nosetests.xml
 .project
 .pydevproject
 
-# OSX .DS_Store
+# ignores added by rb
 .DS_Store
+*.xcodeproj
