@@ -28,3 +28,8 @@ class LH2Tank(Tank):
         self.fuel   += fuel_to_add
         self.parent.mass += fuel_to_add
         self.parent.fuel += fuel_to_add
+
+    def remove_fuel(self, fuel_to_remove):
+        self.fuel -= fuel_to_remove
+        self.parent.mass -= fuel_to_remove
+        self.parent.fuel -= fuel_to_remove

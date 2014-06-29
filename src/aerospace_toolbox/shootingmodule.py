@@ -58,7 +58,7 @@ def firstorder(ic, target, tspan, eom, \
 
 
     #  calculate an appropriate tstep if not defined
-    if tstep == 0: tstep = abs(tspan[1] - tspan[0])/2E2
+    if tstep == 0: tstep = abs(tspan[1] - tspan[0])/5E1
 
     #  if an initial guess for perturbation is given then use it,
     #+ otherwise perturb the shooting method in the direction of current
