@@ -123,8 +123,8 @@ class Mission:
     #  initialization method
     def __init__(self):
         #  initialize a spacecraft for the mission
-        from spaceobjects import SpaceCraft
-        self.spacecraft = SpaceCraft()
+        from spaceobjects import NTR
+        self.spacecraft = NTR()
         #  set the mission type
         self.mission_type = 'gto payload release, nso tank release'
         #  initialize r, v, and m history vectors to store

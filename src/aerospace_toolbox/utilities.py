@@ -59,6 +59,22 @@ def create_one_list(thelist, start_index, end_index, new_list = None, \
                 new_list.append(x * multiplier)
     return new_list
 
+#  create a utility function for scaling a list by a real number
+def scale_list(thelist, scaler, new_list = None):
+    #  import statements
+    from numpy import array
+    #  if a list to append to is not given,
+    #+ then create a new list
+    if new_list == None:
+        #  convert list to array, multiply, and convert back
+        new_list = list(array(thelist) * scaler)
+    else:
+        new_list.append(list(array(thelist) * scaler))
+    #  return the scaled list
+    return new_list
+
+
+
 #  convert r,v to an initial conditions list for use in the
 #+ flow.py module
 def rv2ic(r, v, mu, STM = False):
@@ -90,4 +106,5 @@ def rv2ic(r, v, mu, STM = False):
         if STM: ic[7:] = eye(6).reshape(36,)
     #  return
     return ic
+
 

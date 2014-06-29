@@ -110,19 +110,30 @@ def phistory(dv1, dv2, flow):
     p0dot = solve(nblk, rhs)
     
     # solve for p(t) history
-    p  = [list(array(p0).reshape(2,))]
-    
+    p = [list(array(p0).reshape(len(p0),))]
+
     lx = len(flow['x'])
     for i in range(1,lx-1):
         phi, mblk, nblk = extractSTM(flow, i)
-        pt   = mblk*p0 + nblk*p0dot
-        pt   = list(array(pt).reshape(2,))
+        pt = mblk*p0 + nblk*p0dot
+        pt = list(array(pt).reshape(len(pt),))
         p.append(pt)
     
     # append pf
-    p.append(list(array(pf).reshape(2,)))
+    p.append(list(array(pf).reshape(len(pf),)))
 
     return p
+
+
+def pmaghistory(p):
+    #  import statements
+    from numpy.linalg import norm
+    #  generate the primer vector magnitude history
+    #+ when give a primer vector history
+    pmag = []
+    for item in p:
+        pmag.append(norm(item))
+    return pmag
 
 
 
@@ -133,7 +144,7 @@ def phistory(dv1, dv2, flow):
 def opt_pterminal(x0, ic1, ic2, dt):
     '''
         1.) flow #1, #2 based on x0
-        2.) run lambert
+        2.) run prussing_conway
         3.) run shooting method w/ variational eqns
         4.) generate delta-vs
         5.) generate primer history
@@ -146,7 +157,7 @@ def opt_pterminal(x0, ic1, ic2, dt):
         '''
     # import statements
     from flow import P2B as flow
-    from auxiliary import lambert
+    from lambert import prussing_conway
     from shootingmodule import firstorder as shoot
     from numpy.linalg import norm
     from numpy import array, zeros, eye
@@ -184,7 +195,7 @@ def opt_pterminal(x0, ic1, ic2, dt):
     target = array(flow2['y'][-1][0:4])
     # solve for lambert arc
     print ('Midpoint-0 of an iteration of opt_pterminal!')
-    arc = lambert(ic1, target, mu, TransferTime = abs(tspan[1]))
+    arc = prussing_conway(ic1, target, mu, TransferTime = abs(tspan[1]))
     # setup initial conditions for flow of spacecraft with
     # variational equations
     ic = zeros(21)
@@ -363,7 +374,7 @@ def pterminalcoast(param, step, damp, tol, res, iLimit, \
         
         # solve for new lambert arc
 #        dt   = dt + param
-#        lamb = lambert(ic1, target, dt, mu, iLimit = 1500, tol = 1E-6);
+#        lamb = prussing_conway(ic1, target, dt, mu, iLimit = 1500, tol = 1E-6);
 
         ''' need to update param here because target #1 and target #2
             may not have fully stepped the delta-time'''
@@ -643,7 +654,7 @@ def pterminalcoastU(ic, flow, target, \
         
         # solve for new lambert arc
         #        dt   = dt + param
-        #        lamb = lambert(ic1, target, dt, mu, iLimit = 1500, tol = 1E-6);
+        #        lamb = prussing_conway(ic1, target, dt, mu, iLimit = 1500, tol = 1E-6);
         
         ''' need to update param here because target #1 and target #2
             may not have fully stepped the delta-time'''

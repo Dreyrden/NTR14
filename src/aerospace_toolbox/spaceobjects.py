@@ -19,6 +19,11 @@ class SpaceBody:
         #  define the dynamical model used for propagating
         #+ the body
         self.eom = 'keplerian'
+        #  define fields that will store the state and time history
+        #+ of the spacecraft
+        self.r_history = []
+        self.v_history = []
+        self.t_history = []
     
     def set_parameters(self, body, altitude = 400.0):
         import solarsystem_objects_parameters as ss
@@ -180,7 +185,10 @@ class SpaceBody:
         self.M = E2M(self.e, self.E)
 
     #  method to reset inclination
-    def set_i(self, i):
+    def set_i(self, i, units = None):
+        if units != None:
+            from unit_conversions import converter
+            i = converter(i, units, 'Radians')
         self.i = i
         #  reset i in coe list
         self.coe[2] = i
@@ -189,7 +197,10 @@ class SpaceBody:
         self.r, self.v = coe2rv(self.coe, self.Mu)
     
     #  method to reset RAAN
-    def set_RAAN(self, RAAN):
+    def set_RAAN(self, RAAN, units = None):
+        if units != None:
+            from unit_conversions import converter
+            RAAN = converter(RAAN, units, 'Radians')
         self.RAAN = RAAN
         #  reset RAAN in coe list
         self.coe[3] = RAAN
@@ -198,7 +209,10 @@ class SpaceBody:
         self.r, self.v = coe2rv(self.coe, self.Mu)
     
     #  method to reset AOP
-    def set_AOP(self, AOP):
+    def set_AOP(self, AOP, units = None):
+        if units != None:
+            from unit_conversions import converter
+            AOP = converter(AOP, units, 'Radians')
         self.AOP = AOP
         #  reset AOP in coe list
         self.coe[4] = AOP
@@ -207,7 +221,10 @@ class SpaceBody:
         self.r, self.v = coe2rv(self.coe, self.Mu)
     
     #  method to reset true anomaly
-    def set_f(self, f):
+    def set_f(self, f, units = None):
+        if units != None:
+            from unit_conversions import converter
+            f = converter(f, units, 'Radians')
         self.f = f
         #  reset f in coe list
         self.coe[5] = f
@@ -221,8 +238,64 @@ class SpaceBody:
         self.E = f2E(self.e, self.f)
         self.M = E2M(self.e, self.E)
 
+    #  method to reset classical orbital elements
+    def set_coe(self, coe, units = None, rv = True):
+        if units != None:
+            from unit_conversions import converter
+            coe[2] = converter(coe[2], units, 'Radians')
+            coe[3] = converter(coe[3], units, 'Radians')
+            coe[4] = converter(coe[4], units, 'Radians')
+            coe[5] = converter(coe[5], units, 'Radians')
+        #  reset coe
+        self.sma  = coe[0]
+        self.e    = coe[1]
+        self.i    = coe[2]
+        self.RAAN = coe[3]
+        self.AOP  = coe[4]
+        self.f    = coe[5]
+        self.coe  = [self.sma, self.e, self.i, self.RAAN, \
+                     self.AOP, self.f]
+        #  reset r, v
+        if rv:
+            from auxiliary import coe2rv
+            self.r, self.v = coe2rv(self.coe, self.Mu)
+        #  recalculate additional useful orbital parameters
+        #+ E: eccentricy anomaly
+        #+ M: mean anomaly
+        #+ T: orbital period
+        #+ n: mean motion
+        from auxiliary import f2E, E2M, orbitalperiod
+        from math import pi
+        self.E = f2E(self.e, self.f)
+        self.M = E2M(self.e, self.E)
+        self.T = orbitalperiod(self.Mu, self.sma)
+        self.n = 2.0*pi / self.T
+
+    #  method to reset r
+    def set_r(self, r):
+        self.r = r
+        from auxiliary import rv2coe
+        self.coe = rv2coe(self.r, self.v, self.Mu)
+        #  use self.set_coe() to reset all other attributes
+        self.set_coe(self.coe)
+    
+    #  methdo to reset v
+    def set_v(self, v):
+        self.v = v
+        from auxiliary import rv2coe
+        self.coe = rv2coe(self.r, self.v, self.Mu)
+        #  use self.set_coe() to reset all other attributes
+        self.set_coe(self.coe, rv = False)
+    
+    def set_rv(self, r, v):
+        self.r = r; print self.r
+        self.v = v; print self.v
+        from auxiliary import rv2coe
+        self.coe = rv2coe(self.r, self.v, self.Mu)
+        self.set_coe(self.coe, rv = False)
+    
     #  propagation method of body
-    def flow(self, delta_time):
+    def flow(self, delta_time, SaveFlow = False):
         if self.eom == 'keplerian':
             from kepler import kepler
             from auxiliary import E2f, E2M, coe2rv
@@ -268,11 +341,20 @@ class SpaceBody:
             from utilities import rv2ic
             from flow import S2B
             ic = rv2ic(self.r, self.v, self.Mu, STM = True)
-            flow = S2B(ic, [0, delta_time], eom = 'S2BP_varEqns')
+            flow = S2B(ic, [0, delta_time], tstep = delta_time/1E3, \
+                       eom = 'S2BP_varEqns')
             self.epoch += delta_time
             self.r = flow['y'][-1][0:3]
             self.v = flow['y'][-1][3:6]
             self.STM = flow['y'][-1][6:]
+        #  save the r, v and t history when not using 'keplerian'
+        if self.eom != 'keplerian':
+            n = len(self.r)
+            from utilities import extract_elements
+            extract_elements(flow['y'], 0, n - 1, self.r_history)
+            extract_elements(flow['y'], n, 2*n - 1, self.v_history)
+            self.t_history = flow['x']
+            if SaveFlow: self.theflow = flow
 
 
 
@@ -281,8 +363,7 @@ class SpaceBody:
 #+ a generic spacecraft object that has the ability to be track the
 #+ variational equations when propagating, so that the object can
 #+ calculate maneuvers
-#  the spacecraft class also adds thruster parameters to its fields
-#+ (also known as attributes in Python-land)
+#  the SpaceCraft class does not add hardware to the mix
 class SpaceCraft(SpaceBody):
     'SpaceCraft class documentation string'
 
@@ -294,6 +375,122 @@ class SpaceCraft(SpaceBody):
         #  define the dynamical model used for propagating
         #+ the body
         self.eom = 'keplerian'
+        #  define fields that will store the state and time history
+        #+ of the spacecraft
+        self.r_history = []
+        self.v_history = []
+        self.t_history = []
+    
+    #  targeting method for transfers
+    def transfer(self, target_position, target_velocity, flight_time, \
+                 r_history = None, v_history = None, t_history = None, \
+                 Minimize_Energy = False, SaveFlow = False):
+        #  giving lists to r_history, v_history and t_history arguments will
+        #+ populate them with the r, v state and time histories
+        #  given export_flow will store the entire flow in export_flow
+        #  Minimize_Energy = True will override 'flight_time' with the
+        #  minimum energy time of flight given from lambert
+        from utilities import rv2ic
+        from shootingmodule import firstorder as shoot
+        #  create the initial conditions vector
+        #  select an appropriate eom model that includes the
+        #+ variational equations
+        if len(target_position) == 2:
+            ic = rv2ic(self.r[0:2], self.v[0:2], self.Mu, STM = True)
+            temp_eom = 'P2BP_varEqns'
+        elif len(target_position) == 3:
+            ic = rv2ic(self.r, self.v, self.Mu, STM = True)
+            temp_eom = 'S2BP_varEqns'
+        #  Override 'flight_time' if Minimize_Energy = True
+        if Minimize_Energy:
+            from utilities import create_one_list
+            from lambert import prussing_conway
+            ic0 = create_one_list([self.r, self.v], 0, 1)
+            icf = create_one_list([target_position, target_velocity], 0, 1)
+            #  find the minimum time for a lambert solution
+            lambert_solution = prussing_conway(ic0, icf, self.Mu, \
+                                       FindMinEnergy = True, \
+                                       NonDimUnits = False, \
+                                       ScaleOutput = False)
+            time_for_min_energy = lambert_solution['tm']
+            #  use the minimum time as a flight time to compute
+            #+ the lambert solution
+            lambert_solution = prussing_conway(ic0, icf, self.Mu, \
+                                       TransferTime = time_for_min_energy, \
+                                       NonDimUnits = False, \
+                                       ScaleOutput = False)
+            from numpy import array
+            dv1_guess = list(lambert_solution['v1'] - array(ic0[2:4]))
+            dv1_guess.append(0.0)
+            flight_time = lambert_solution['time']
+        else:
+            dv1_guess = None
+        #  apply the first order shooting method
+        trajectory = shoot(ic, target_position, [0, flight_time], temp_eom, \
+                           tol = 1E-2, iLimit = 60, \
+                           damping = 0.3, guess = dv1_guess, \
+                           print_status = True)
+        #  store the delta-v impulsive maneuvers needed
+        #+ for the given transfer
+        if len(target_position) == 2:
+            self.dv1 = trajectory['y'][0][2:4] - self.v
+            self.dv2 = target_velocity - trajectory['y'][-1][2:4]
+        elif len(target_position) == 3:
+            self.dv1 = trajectory['y'][0][3:6] - self.v
+            self.dv2 = target_velocity - trajectory['y'][-1][3:6]
+        #  save trajectory states if desired
+        from utilities import extract_elements
+        n = len(target_position)
+        if r_history != None:
+            extract_elements(trajectory['y'], 0, n - 1, r_history)
+        else:
+            extract_elements(trajectory['y'], 0, n - 1, self.r_history)
+        if v_history != None:
+            extract_elements(trajectory['y'], n, 2*n - 1, v_history)
+        else:
+            extract_elements(trajectory['y'], n, 2*n - 1, self.v_history)
+        #  save the time history of the trajectory
+        if t_history != None:
+            t_history = trajectory['x']
+        else:
+            self.t_history = trajectory['x']
+        #  if the user wants the entire flow history,
+        #+ give it to them!
+        if SaveFlow:
+            self.theflow = trajectory
+
+    #  a method for generating the primer vector
+    def generate_primer_history(self):
+        from primervectormodule import phistory, pmaghistory
+        from numpy import array
+        #  primer vector history
+        self.p    = phistory(self.dv1, self.dv2, self.theflow)
+        #  primer vector magnitude history
+        self.pmag = pmaghistory(self.p)
+
+
+
+
+
+
+#  the NTR class adds hardware parameters to its fields
+#+ as well as methods for setting and accessing those fields
+class NTR(SpaceCraft):
+    'NTR class documentation string'
+
+    #  initialization method
+    def __init__(self, orbit = 'LEO'):
+        #  call the set_parameters method
+        #+ to initialize attributes to the specified body
+        self.set_parameters(orbit)
+        #  define the dynamical model used for propagating
+        #+ the body
+        self.eom = 'keplerian'
+        #  define fields that will store the state and time history
+        #+ of the spacecraft
+        self.r_history = []
+        self.v_history = []
+        self.t_history = []
         #  initialize an empty array for storing tank objects
         #+ and tank names
         self.tank = []
@@ -307,69 +504,14 @@ class SpaceCraft(SpaceBody):
         self.nozzle = Nozzle(self)
         #  initialize a structure
         #
-        #  initialize a .....
-    
-    #  targeting method for transfers
-    def transfer(self, target_position, target_velocity, flight_time, \
-                 r_history = None, v_history = None, Minimize_Energy = False):
-        #  giving lists to r_history and v_history arguments will
-        #+ populate them with the r and v state histories
-        #  Minimize_Energy = True will override 'flight_time' with the
-        #  minimum energy time of flight given from lambert
-        from utilities import rv2ic
-        from shootingmodule import firstorder as shoot
-        #  create the initial conditions vector
-        #  select an appropriate eom model that includes the
-        #+ variational equations
-        print ('Setup Initial Conditions for Lambert ....')
-        if len(target_position) == 2:
-            ic = rv2ic(self.r[0:2], self.v[0:2], self.Mu, STM = True)
-            temp_eom = 'P2BP_varEqns'
-        elif len(target_position) == 3:
-            ic = rv2ic(self.r, self.v, self.Mu, STM = True)
-            temp_eom = 'S2BP_varEqns'
-        #  Override 'flight_time' if Minimize_Energy = True
-        if Minimize_Energy:
-            from utilities import create_one_list
-            from auxiliary import lambert
-            ic0 = create_one_list([self.r, self.v], 0, 1)
-            icf = create_one_list([target_position, target_velocity], 0, 1)
-            #  find the minimum time for a lambert solution
-            lambert_solution = lambert(ic0, icf, self.Mu, \
-                                       FindMinEnergy = True, \
-                                       NonDimUnits = False, \
-                                       ScaleOutput = False)
-            time_for_min_energy = lambert_solution['tm']
-            #  use the minimum time as a flight time to compute
-            #+ the lambert solution
-            lambert_solution = lambert(ic0, icf, self.Mu, \
-                                       TransferTime = time_for_min_energy, \
-                                       NonDimUnits = False, \
-                                       ScaleOutput = False)
-            from numpy import array
-            dv1_guess = list(lambert_solution['v1'] - array(ic0[2:4]))
-            dv1_guess.append(0.0)
-            flight_time = lambert_solution['time']
-        #  apply the first order shooting method
-        trajectory = shoot(ic, target_position, [0, flight_time], temp_eom, \
-                           tol = 1E-1, iLimit = 30, \
-                           damping = 0.3, guess = dv1_guess, \
-                           print_status = True)
-        #  store the delta-v impulsive maneuvers needed
-        #+ for the given transfer
-        if len(target_position) == 2:
-            self.dv1 = trajectory['y'][0][2:4] - self.v
-            self.dv2 = target_velocity - trajectory['y'][-1][2:4]
-        elif len(target_position) == 3:
-            self.dv1 = trajectory['y'][0][3:6] - self.v
-            self.dv2 = target_velocity - trajectory['y'][-1][3:6]
-        #  save trajectory states if desired
-        from utilities import extract_elements
-        if r_history != None:
-            extract_elements(trajectory['y'], 0, 2, r_history)
-        if v_history != None:
-            extract_elements(trajectory['y'], 3, 5, v_history)
-            
+        #  initialize an rcs system
+        #
+        #  initialize a docking system
+        #
+        #  initialize a power system
+        #
+        #  initialize a shielding system
+
     #  set the tank model from the tank module
     def add_tank(self, tank = 'LH2_Tank'):
         if tank == 'LH2_Tank':
@@ -377,11 +519,6 @@ class SpaceCraft(SpaceBody):
             newtank = Tank(self)
             self.tank.append(newtank)
             self.tanknames.append(newtank.name)
-
-
-
-
-
 
 
 

@@ -135,12 +135,94 @@ def histogram_plot(data, num_bins, \
     else: savefig(savepath + image_name)
 
 
-''' NEED TO BUILD IN A DEFAULT X-Y PLOT HERE '''
+#  LinePlot Class is a default class for
+#+ creating 2D Plots
+class LinePlot:
+    'LinePlot class documentation string'
+
+    #  initialization method
+    def __init__(self, number):
+        #  import statements
+        import matplotlib.pyplot as plt
+        self.fig_number = number
+        self.axisbg = '1.0'
+        self.fig = plt.figure(number)
+        self.ax  = self.fig.add_subplot(111, axisbg = self.axisbg)
+        
+        #  additional plotting attributes
+        self.xlabel = ''
+        self.ylabel = ''
+        self.title  = ''
+        #  x, y axis containers for plot scaling
+        self.xaxis = []
+        self.yaxis = []
+        #  x, y containers for plotting
+        self.x = []
+        self.y = []
+        #  initialize min and max for setting axis
+        self.lmin = 0.0
+        self.lmax = 0.0
+
+    #  2d plotting method
+    def plot(self, color = 'b', marker = ''):
+        # plot the flow
+        self.ax.plot(self.x, self.y, c = color, marker = marker)
+        #  find the min and max of the plot data
+        lmins = [min(self.x), min(self.y)]
+        lmaxs = [max(self.x), max(self.y)]
+        lmin  = min(lmins)
+        lmax  = max(lmaxs)
+        #  find the extreme min and max of the plot data
+        #+ and save to self attributes if
+        #+ max is larger than current self.max or
+        #+ min is smaller than current self.min
+        if lmin < self.lmin: self.lmin = lmin
+        if lmax > self.lmax: self.lmax = lmax
+
+    #  set the axes
+    def set_axis(self, aspect = 'equal'):
+        #  if aspect is set to equal by default or user
+        if aspect == 'equal':
+            self.ax.set_xlim3d(self.lmin, self.lmax)
+            self.ax.set_ylim3d(self.lmin, self.lmax)
+
+    #  set the aspect ratio
+    def set_aspect(self, aspect = 'equal'):
+        if aspect == 'equal':
+            self.ax.set_aspect(aspect)
+        else:
+            self.ax.set_aspect(aspect)
+
+    #  set the legend
+    def set_legend(self, list = ['']):
+        self.ax.legend(list)
+
+    #  draw the plot
+    def draw(self):
+        #  import statements
+        import matplotlib.pyplot as plt
+        plt.draw()
+
+    #  draw a grid on plot
+    def grid(self):
+        #  import statements
+        import matplotlib.pyplot as plt
+        plt.grid()
+
+    #  show the plot
+    def show(self):
+        #  import statements
+        import matplotlib.pyplot as plt
+        plt.show(self.fig_number)
 
 
 
 
-''' NEED TO BUILD IN A DEFAULT X-Y-Z PLOT HERE '''
+
+
+
+#  ArcPlot Class is a default class for
+#+ creating 3D Plots
 class ArcPlot:
     'ArcPlot class documentation string'
 
@@ -213,7 +295,7 @@ class ArcPlot:
     def draw(self):
         #  import statements
         import matplotlib.pyplot as plt
-        plt.draw(self.fig_number)
+        plt.draw()
 
     #  show the arc plot
     def show(self):
