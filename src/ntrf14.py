@@ -48,11 +48,14 @@ mission.global_decision_vector = [1, 0, 0]
 mission.set_global_decisions()
 #  call the global optimizer routine
 mission.global_optimization()
+
+print '////////// EVALUATE MISSION //////////'
 mission.evaluate()
 r = mission.ntr.r_history
+print '////////// MISSION GLOBAL DECISION VECTOR ///////////'
 print mission.global_decision_vector
+print '////////// MISSION LOCAL DECISION VECTOR ///////////'
 print mission.local_decision_vector
-print r
 
 
 #mission = missions.main(1, 0, 0, payload_mass, payload_height, payload_radius)

@@ -382,7 +382,7 @@ class SpaceCraft(SpaceBody):
         self.t_history = []
     
     #  targeting method for transfers
-    def transfer(self, target_position, target_velocity, flight_time, \
+    def transfer(self, target_position, target_velocity, flight_time = None, \
                  r_history = None, v_history = None, t_history = None, \
                  Minimize_Energy = False, SaveFlow = False):
         #  giving lists to r_history, v_history and t_history arguments will
@@ -392,6 +392,9 @@ class SpaceCraft(SpaceBody):
         #  minimum energy time of flight given from lambert
         from utilities import rv2ic
         from shootingmodule import firstorder as shoot
+        #  if no flight_time is given,
+        #+ hopefully the user has switched on Minimize_Energy
+        if flight_time == None: flight_time = 0.0
         #  create the initial conditions vector
         #  select an appropriate eom model that includes the
         #+ variational equations
@@ -491,14 +494,17 @@ class NTR(SpaceCraft):
         self.r_history = []
         self.v_history = []
         self.t_history = []
+        #  general attributes to be updated by various methods
+        self.mass   = 0.0
+        self.length = 0.0
         #  initialize an empty array for storing tank objects
         #+ and tank names
         self.tank = []
         self.tanknames = []
         self.fuel = 0.0
         #  initialize a nuclear thermal core
-        from cores import LEUCore as Core
-        self.core = Core()
+        from cores import Core
+        self.core = Core(self)
         #  initialize a nozzle
         from nozzles import Nozzle
         self.nozzle = Nozzle(self)
