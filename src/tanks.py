@@ -1,5 +1,6 @@
 #  owner: rg
 import math
+import power
 
 class Tank:
     'Tank class documentation string'
@@ -69,51 +70,56 @@ class LH2Tank(Tank):
            
             # Endcaps -------------------------------------------------------------
             # Endcap Dimenions
-            endcap_ellipsoid_height = self.radius/endcap_ellipsoid_ratio
-            if self.DEBUG: print 'endcap_ellipsoid_height', endcap_ellipsoid_height
-            endcap_crown_radius = endcap_ellipsoid_ratio*self.radius
-            if self.DEBUG: print 'endcap_crown_radius', endcap_crown_radius
+            endcap_ellipsoid_height = self.radius/endcap_ellipsoid_ratio   
+            endcap_crown_radius = endcap_ellipsoid_ratio*self.radius           
             eccentricity = math.pow((math.pow(self.radius,2)-math.pow(endcap_ellipsoid_height,2)),0.5)/self.radius
-            if self.DEBUG: print 'eccentricity', eccentricity
-    
-            # Calculate Single Endcap Volume
             endcap_volume = (2*math.pi*math.pow(self.radius,2)*endcap_ellipsoid_height)/3
-            if self.DEBUG: print 'endcap_volume',  endcap_volume
             
+            if self.DEBUG: 
+                print 'endcap_ellipsoid_height', endcap_ellipsoid_height
+                print 'endcap_crown_radius', endcap_crown_radius
+                print 'eccentricity', eccentricity
+                print 'endcap_volume',  endcap_volume
+                        
             # Calculate Endcap thicknesses
-            knuckle_thickness = (stress_factor*tank_pressure*self.radius)/(max_working_stress*welding_efficiency)
-            if self.DEBUG: print 'knuckle_thickness', knuckle_thickness
-            crown_thickness = (tank_pressure*endcap_crown_radius)/(2*max_working_stress*welding_efficiency)
-            if self.DEBUG: print 'crown_thickness', crown_thickness
+            knuckle_thickness = (stress_factor*tank_pressure*self.radius)/(max_working_stress*welding_efficiency)       
+            crown_thickness = (tank_pressure*endcap_crown_radius)/(2*max_working_stress*welding_efficiency)    
             equivalent_wall_thickness = (knuckle_thickness+crown_thickness)/2
-            if self.DEBUG: print 'equivalent_wall_thickness', equivalent_wall_thickness
-    
+            
+            if self.DEBUG: 
+                print 'knuckle_thickness', knuckle_thickness
+                print 'crown_thickness', crown_thickness
+                print 'equivalent_wall_thickness', equivalent_wall_thickness
+            
             # Endcap Surface Area
-            endcap_surface_area = math.pow(self.radius,2) + ((math.pi*math.pow(endcap_ellipsoid_height,2)*math.log((1+eccentricity)/(1-eccentricity))))/(2*eccentricity)
-            if self.DEBUG: print 'endcap_surface_area', endcap_surface_area
+            endcap_surface_area = math.pow(self.radius,2) + ((math.pi*math.pow(endcap_ellipsoid_height,2)*math.log((1+eccentricity)/(1-eccentricity))))/(2*eccentricity)  
             endcap_insulation_mass = endcap_surface_area*(0.78+0.015*self.mli_layers)
-            if self.DEBUG: print 'endcap_insulation_mass', endcap_insulation_mass
-    
-    
-            design_factor = 2*endcap_ellipsoid_ratio + (1/math.pow((math.pow(endcap_ellipsoid_ratio,2)-1),0.5))*math.log((endcap_ellipsoid_ratio+math.pow(math.pow(endcap_ellipsoid_ratio,2)-1,0.5))/(endcap_ellipsoid_ratio-math.pow(math.pow(endcap_ellipsoid_ratio,2)-1,0.5)))
-            if self.DEBUG: print 'design_factor', design_factor
+            design_factor = 2*endcap_ellipsoid_ratio + (1/math.pow((math.pow(endcap_ellipsoid_ratio,2)-1),0.5))*math.log((endcap_ellipsoid_ratio+math.pow(math.pow(endcap_ellipsoid_ratio,2)-1,0.5))/(endcap_ellipsoid_ratio-math.pow(math.pow(endcap_ellipsoid_ratio,2)-1,0.5))) 
             endcap_mass = (math.pi*math.pow(self.radius,2)*equivalent_wall_thickness*design_factor*tank_material_density)/(2*endcap_ellipsoid_ratio) + endcap_insulation_mass
-            if self.DEBUG: print 'endcap_mass', endcap_mass
+            
+            if self.DEBUG: 
+                print 'endcap_surface_area', endcap_surface_area
+                print 'endcap_insulation_mass', endcap_insulation_mass
+                print 'design_factor', design_factor
+                print 'endcap_mass', endcap_mass
     
             # Cylinder ------------------------------------------------------------
-            cylinder_volume = total_tank_volume - 2*endcap_volume
-            if self.DEBUG: print 'cylinder_volume', cylinder_volume
-            cylinder_length = cylinder_volume/(math.pi*math.pow(self.radius,2))
-            if self.DEBUG: print 'cylinder_length', cylinder_length
+            cylinder_volume = total_tank_volume - 2*endcap_volume           
+            cylinder_length = cylinder_volume/(math.pi*math.pow(self.radius,2))            
             cylinder_thickness = (tank_pressure*self.radius)/(max_working_stress*welding_efficiency)
-            if self.DEBUG: print 'cylinder_thickness', cylinder_thickness
-            cylinder_surface_area = 2*math.pi*self.radius*cylinder_length
-            if self.DEBUG: print 'cylinder_surface_area', cylinder_surface_area
+            cylinder_surface_area = 2*math.pi*self.radius*cylinder_length           
             cylinder_insulation_mass = cylinder_surface_area*(0.78+0.015*self.mli_layers)
-            if self.DEBUG: print 'cylinder_insulation_mass', cylinder_insulation_mass
             cylinder_mass = 2*math.pi*self.radius*cylinder_length*cylinder_thickness*tank_material_density + cylinder_insulation_mass
-            if self.DEBUG: print 'cylinder_mass', cylinder_mass
             
+            if self.DEBUG: 
+                print 'cylinder_volume', cylinder_volume
+                print 'cylinder_length', cylinder_length
+                print 'cylinder_thickness', cylinder_thickness
+                print 'cylinder_surface_area', cylinder_surface_area
+                print 'cylinder_insulation_mass', cylinder_insulation_mass
+                print 'cylinder_mass', cylinder_mass
+            
+            surface_area = cylinder_surface_area + 2*endcap_surface_area
             self.structural_mass += 2*endcap_mass + cylinder_mass
             self.tanklength += cylinder_length + 2*endcap_ellipsoid_height
             self.parent.mass += self.structural_mass
@@ -135,13 +141,19 @@ class LH2Tank(Tank):
                 self.tanklength += 2*self.radius
                 self.parent.mass += self.structural_mass
                 
+                
             else:
-                #SOME FORM OF ERROR        
+                #SOME FORM OF ERROR    
+                print 'error'    
         
         
         else:  
             print 'geometry selection error'
-    
+        
+        M_array, M_ZBO, loss = power.tank_power(self.parent, mli_layers, surface_area, ZBO, spow, days)
+        
+        
+        
 #Testing Code
 #tank = Tank()
 #htank = LH2Tank(tank)
