@@ -1,123 +1,5 @@
 #  owner: rb
 
-def main(mission_type, launch_vehicle, payload_fairing,
-         payload_mass, payload_height, payload_radius):
-    #  unpack *parameters
-    #  mission_type:    (integer)   [0, 4]
-    #  launch_vehicle:  (integer)   [0, 15]
-    #  payload_fairing  (integer)   [0, 3]
-#    mission_type, launch_vehicle, payload_fairing = parameters
-    #  convert mission type identifier to string
-    if   mission_type == 0: mission_type = 'gto payload release, ' \
-                                           'gto tank release'
-    elif mission_type == 1: mission_type = 'gto payload release, ' \
-                                           'nso tank release'
-    elif mission_type == 2: mission_type = 'geo payload release, ' \
-                                           'geo tank release'
-    elif mission_type == 3: mission_type = 'geo payload release, ' \
-                                           'gto tank release'
-    elif mission_type == 4: mission_type = 'geo payload release, ' \
-                                           'nso tank release'
-    #  convert launch vehicle integer identifier to string
-    if   launch_vehicle ==  0: launch_vehicle = 'AtlasV501'
-    elif launch_vehicle ==  1: launch_vehicle = 'AtlasV511'
-    elif launch_vehicle ==  2: launch_vehicle = 'AtlasV521'
-    elif launch_vehicle ==  3: launch_vehicle = 'AtlasV531'
-    elif launch_vehicle ==  4: launch_vehicle = 'AtlasV541'
-    elif launch_vehicle ==  5: launch_vehicle = 'AtlasV701'
-    elif launch_vehicle ==  6: launch_vehicle = 'AtlasV711'
-    elif launch_vehicle ==  7: launch_vehicle = 'AtlasV721'
-    elif launch_vehicle ==  8: launch_vehicle = 'AtlasV731'
-    elif launch_vehicle ==  9: launch_vehicle = 'DeltaIVM42E'
-    elif launch_vehicle == 10: launch_vehicle = 'DeltaIVM52E'
-    elif launch_vehicle == 11: launch_vehicle = 'DeltaIVM54E'
-    elif launch_vehicle == 12: launch_vehicle = 'Falcon9'
-    elif launch_vehicle == 13: launch_vehicle = 'ArianeVECA'
-    elif launch_vehicle == 14: launch_vehicle = 'ProtonM'
-    elif launch_vehicle == 15: launch_vehicle = 'DeltaIVH'
-
-    """ SETUP GA or BRUTE FORCE Parameters Here """
-    #  initialize a mission of Mission class
-    mission = Mission()
-    #  set the ntr to have initial conditions of the
-    #+ desired 'NSO' Nuclear Safe Orbit
-    mission.nso_altitude = 1200.0
-    mission.ntr.set_parameters('LEO', mission.nso_altitude)
-    #  set the mission type
-    mission.mission_type = mission_type
-    #  set the launch vehicle
-    mission.launch_vehicle = launch_vehicle
-    #  set the payload fairing type
-    #  some launch vehicles only have 1 choice for payload fairings,
-    #+ others have up to 4
-    mission.payload_fairing = payload_fairing
-    #  set attributes for the payload
-    mission.payload_mass   = payload_mass
-    mission.payload_height = payload_height
-    mission.payload_radius = payload_radius
-    #  add a fuel tank to the ntr
-    mission.ntr.add_tank()
-    mission.ntr.tank[0].add_fuel(1000.0)
-    #  reset the r, v, and m history vectors
-#    mission.r_history = []
-#    mission.v_history = []
-    #  set the equations of motion of the ntr to 'S2B'
-    #+ for shooting methods
-    mission.ntr.eom = 'S2B'
-
-    """ TEMPORARY GEO TARGETING UNTIL TRANSFER METHOD IMPROVED 
-        TO HIT COEs """
-    #  initialize a mission target
-    from spaceobjects import SpaceCraft
-    mission.target = SpaceCraft()
-    mission.target.set_sma(42000.0)
-    mission.target.set_i(0.0, 'Degrees')
-    mission.target.set_f(180.0, 'Degrees')
-
-    """ Inner-Loop Optimization Call Here """
-    #  import scipy.optimize module
-    from scipy.optimize import minimize
-    from scipy.optimize import fmin_l_bfgs_b
-    from numpy import array
-    #  the decision_vector that scipy.optimize can modify
-    #  nso_alititude:   (real)      [400, 2000]     (km)    ic: 1200
-    #  core_thrust:     (real)      [5000, 25000]   (lbf)   ic: 12500
-    #  perform inner-loop optimization
-    """ For whatever reason, the minimize() interface is not
-        working appropriately : 2014_06_22 
-        , so using direct call to fmin_l_bfgs_b with 
-        maxfun = 5. maxfun = 3 was sufficient for transfer 
-        test problem """
-#    profit = minimize(mission.optimize,
-#                      ((nso_altitude),),
-#                      bounds = bnds, method = 'L-BFGS-B',
-#                      options = {'disp': False, 'maxiter': 6})
-    bnds = ((400.0, 2000.0), )#(5000.0, 25000.0))
-    initial_guess = array([mission.nso_altitude])#, \
-#                           mission.core.thrust])
-    opt_result = fmin_l_bfgs_b(mission.optimize,
-                               initial_guess,
-                               bounds = bnds,
-                               approx_grad = True,
-                               epsilon = 100,
-                               maxfun = 5)
-    #  store the decision vector and obj. func.
-    mission.decision_vector = opt_result[0]
-    mission.objfunc = opt_result[1]
-    #  return inner-loop optimization result to
-    #+ the global optimization routine
-    print opt_result
-    print opt_result[0]
-    print opt_result[1]
-#    return profit
-    return mission
-
-
-
-
-
-
-
 class Mission:
     'Mission class documentation string'
 
@@ -135,10 +17,6 @@ class Mission:
         #  initializae an ntr spacecraft
         self.ntr = NTR()
         if self.DEBUG: print self.ntr.mass
-        #  add a fuel tank to the ntr
-        self.ntr.add_tank()
-        self.ntr.tank[0].add_fuel(1000.0)
-        if self.DEBUG: print self.ntr.mass
         #  set the equations of motion of the ntr to 'S2B'
         #+ for shooting methods
         self.ntr.eom = 'S2B'
@@ -150,8 +28,7 @@ class Mission:
         #  [0]: mission type
         #  [1]: launch vehicle
         #  [2]: payload fairing
-        self.global_decision_vector = [1, 0, 0]
-        self.set_global_decisions()
+        self.set_global_decisions([1, 0, 0])
         
         #  initialize local parameters
         #  set the ntr to have initial conditions of a
@@ -181,9 +58,12 @@ class Mission:
         self.payload_mass   = mass
         self.payload_height = height
         self.payload_radius = radius
+        #  add the payload mass to the spacecraft
+        self.ntr.add_payload_mass(self.payload_mass)
 
 
 
+    #  method for setting the specified target
     def set_target(self):
         #  initialize a mission target
         from spaceobjects import SpaceCraft
@@ -193,48 +73,6 @@ class Mission:
         self.target.set_f(180.0, 'Degrees')
 
 
-
-    #  execute the specified mission
-    def execute(self):
-        #  import rocket equation for computing fuel usage
-        from auxiliary    import tsiolkovsky
-        from numpy.linalg import norm
-        #  reset the r and v history
-        self.ntr.r_history = []
-        self.ntr.v_history = []
-        #  select and perform mission type
-        if self.mission_type == 'gto payload release, gto tank release':
-            pass
-        elif self.mission_type == 'gto payload release, nso tank release':
-            #  calculate the first transfer phase from
-            #+ NSO -> GTO
-            self.ntr.transfer(self.target.r, self.target.v,
-                              Minimize_Energy = True)
-            #  based on the transfer calculation, compute the fuel burn
-            fuel_used = self.ntr.mass - \
-                        tsiolkovsky(norm(self.ntr.dv1),
-                                    self.ntr.nozzle.Isp,
-                                    self.ntr.mass)
-            fuel_remaining = self.ntr.fuel - fuel_used
-            if self.DEBUG: print ('ntr Isp: %f ' %self.ntr.nozzle.Isp)
-            if self.DEBUG: print ('Fuel Available at Start: %8.5f ' %self.ntr.fuel)
-            if self.DEBUG: print ('Fuel Used: %8.5f' %fuel_used)
-            if self.DEBUG: print ('Fuel Remaining: %8.5f ' %fuel_remaining)
-            #  store the burn history (i.e. fuel consumed at impulses)
-            #+ and remove fuel from tanks
-            self.history['burnmass'].append(fuel_used)
-            self.ntr.tank[0].remove_fuel(fuel_used)
-            if self.DEBUG: print ('CHECK -> Fuel Remaining: %f ' %self.ntr.fuel)
-            
-            #  flow NSO -> GTO trajectory and save state information
-        elif self.mission_type == 'geo payload release, geo tank release':
-            pass
-        elif self.mission_type == 'geo payload release, gto tank release':
-            pass
-        elif self.mission_type == 'geo payload release, nso tank release':
-            pass
-       
-       
        
     #  method for setting global optimization variables
     def set_global_decisions(self,
@@ -292,26 +130,47 @@ class Mission:
     def set_local_decisions(self,
                             local_decision_vector = None,
                             nso_altitude = None,
-                            core_thrust  = None):
+                            core_thrust  = None,
+                            permanent_tank_fuel = None,
+                            mission_tank_fuel = None,
+                            mission_tank_radius = None):
         #  set the local decision vector if given as an argument
         if local_decision_vector != None:
             self.local_decision_vector = local_decision_vector
+        
         #  import statement
         import solarsystem_objects_parameters as ss
         #  set the nso altitude
-        if nso_altitude == None:
-            self.nso_altitude = self.local_decision_vector[0]
-        else:
-            self.nso_altitude = nso_altitude
+        if nso_altitude == None: self.nso_altitude = self.local_decision_vector[0]
+        else: self.nso_altitude = nso_altitude
         #  set sma
         self.ntr.set_sma(ss.earth['Radius'] + self.nso_altitude)
+        
         #  set the core thrust and derived parameters
-        if core_thrust == None:
-            self.ntr.core.thrust = self.local_decision_vector[1]
-        else:
-            self.ntr.core.thrust = core_thrust
+        if core_thrust == None: self.ntr.core.thrust = self.local_decision_vector[1]
+        else: self.ntr.core.thrust = core_thrust
         #  update relevant ntr attributes
         self.ntr.core.set_thrust_derived_properties()
+
+        #  add the permanent tank
+        self.ntr.add_tank()
+        if permanent_tank_fuel == None:
+            self.ntr.tank[0].add_fuel(self.local_decision_vector[2])
+            self.ntr.tank[0].tank_size(-1, 5, geometry = 'spherical')
+        else:
+            self.ntr.tank[0].add_fuel(permanent_tank_fuel)
+            self.ntr.tank[0].tank_size(-1, 5, geometry = 'spherical')
+
+        #  add the mission tank
+        self.ntr.add_tank()
+        if permanent_tank_fuel == None:
+            self.ntr.tank[1].add_fuel(self.local_decision_vector[3])
+            self.ntr.tank[1].tank_size(self.local_decision_vector[4], 5)
+        else:
+            self.ntr.tank[1].add_fuel(mission_tank_fuel)
+            self.ntr.tank[1].tank_size(mission_tank_radius, 5)
+
+
 
 
 
@@ -332,9 +191,22 @@ class Mission:
         from scipy.optimize import minimize
         from scipy.optimize import fmin_l_bfgs_b
         from numpy import array
-        #  the decision_vector that scipy.optimize can modify
+        #  the decision_vector that scipy.optimize OR equivalent can modify
         #  nso_alititude:   (real)      [400, 2000]     (km)    ic: 1200
         #  core_thrust:     (real)      [5000, 25000]   (lbf)   ic: 25000
+        #  perm_tank_fuel:  (real)      [100, 600]      (kg)    ic: 400
+        #  payl_tank_fuel:  (real)      [400, 5000]     (kg)    ic: 1000
+        #  payl_tank_rad:   (real)      [LV Dependent]  (m)     ic: 1.5
+        
+        #  notes:
+        #  for now, permanent tank assumed to be of type 'spherical'
+        #+ and payload tank assumed to be of type 'cylindrical'
+        #+ final version of code can move the decision of tank type to the
+        #+ outer loop level where a GA or Brute force method would trade each.
+        #+ a if-loop would need to be added within this method to setup the
+        #+ correct decision vector length based on which tank types have been
+        #+ chosen.
+        
         #  perform inner-loop optimization
         """ For whatever reason, the minimize() interface is not
             working appropriately : 2014_06_22
@@ -345,12 +217,13 @@ class Mission:
         #                      ((nso_altitude),),
         #                      bounds = bnds, method = 'L-BFGS-B',
         #                      options = {'disp': False, 'maxiter': 6})
-        bnds = ((400.0, 2000.0), (5000.0, 25000.0))
-        initial_guess = array([self.nso_altitude, self.ntr.core.thrust])#, \
-        #                           mission.core.thrust])
-        opt_result = fmin_l_bfgs_b(self.optimize,
-                                   initial_guess,
-                                   bounds = bnds,
+        self.bnds = ((400.0, 2000.0), (5000.0, 25000.0),
+                     (100.0, 600.0), (400.0, 5000.0), (0.5, 2.0))
+        self.initial_guess = array([self.nso_altitude, self.ntr.core.thrust,
+                                    400.0, 1000.0, 1.5])
+        opt_result = fmin_l_bfgs_b(self._evaluate,
+                                   self.initial_guess,
+                                   bounds = self.bnds,
                                    approx_grad = True,
                                    epsilon = 100,
                                    maxfun = 5)
@@ -367,23 +240,22 @@ class Mission:
 
 
     
-    #  optimize the mission
-    def optimize(self, decision_vector):
-        if self.DEBUG: print ('\n ---- Starting a New Iteration ---- \n')
+    #  evaluate the mission (this is the "internal" call)
+    def _evaluate(self, decision_vector):
         #  import statements
-        from copy import copy, deepcopy
         import solarsystem_objects_parameters as ss
-        from revenue import calculate_revenue
-        from cost import calculate_cost
-        from numpy import array
         from numpy.linalg import norm
-        from time import sleep
-    
+        from numpy   import array
+        from copy    import copy, deepcopy
+        from revenue import calculate_revenue
+        from cost    import calculate_cost
+        from time    import sleep
         
         #  make a copy of the actual mission and its ntr to optimize on
-        mission_copy     = deepcopy(self)
+        mission_copy = deepcopy(self)
         mission_copy.set_local_decisions(decision_vector)
-#        mission_copy.ntr = copy(self.ntr)
+        #  debug print statements
+        if self.DEBUG: print ('\n ---- Starting a New Iteration ---- \n')
         if self.DEBUG: print ('--- Memory Locations ---')
         if self.DEBUG: print ('  mission level  ')
         if self.DEBUG: print mission_copy
@@ -404,20 +276,11 @@ class Mission:
         if self.DEBUG: print ('  2 obj ')
         if self.DEBUG: print ('-----------------------')
         if self.DEBUG: print mission_copy.ntr.mass
-        #  set the decision_vector parameters
-#        mission_copy.nso_altitude = decision_vector[0]
         if self.DEBUG: print ('self.nso_altitude is: %f ' %self.nso_altitude)
         if self.DEBUG: print ('copy.nso_altitude is: %f ' %mission_copy.nso_altitude)
-        #  convert nso_altitude into nso_sma
-#        nso_sma = ss.earth['Radius'] + decision_vector[0]
         if self.DEBUG: print ('nso_altitude: %.12f ' %decision_vector[0])
-#        if self.DEBUG: print ('nso_sma:      %.12f ' %nso_sma)
-#        mission_copy.ntr.set_sma(nso_sma)
         if self.DEBUG: print ('self.ntr.sma %f ' %self.ntr.sma)
         if self.DEBUG: print ('copy.ntr.sma %f ' %mission_copy.ntr.sma)
-        #  set the core thrust and derived parameters
-#        mission_copy.ntr.core.thrust = decision_vector[1]
-#        mission_copy.ntr.core.set_thrust_derived_properties()
         if self.DEBUG: print ('mission_copy parameters')
         if self.DEBUG: print ('core thrust is: %f ' %mission_copy.ntr.core.thrust)
         if self.DEBUG: print ('core mass   is: %f ' %mission_copy.ntr.core.mass)
@@ -426,7 +289,6 @@ class Mission:
         if self.DEBUG: print ('core thrust is: %f ' %self.ntr.core.thrust)
         if self.DEBUG: print ('core mass   is: %f ' %self.ntr.core.mass)
         if self.DEBUG: print ('ntr mass    is: %f ' %self.ntr.mass)
-        
         if self.DEBUG: print 'sleep.....'
         if self.DEBUG: sleep(5.0)
         
@@ -477,6 +339,127 @@ class Mission:
         self.profit = self.revenue - self.cost
 
 
+
+    #  execute the specified mission
+    def execute(self):
+        #  import rocket equation for computing fuel usage
+        from auxiliary    import tsiolkovsky
+        from numpy.linalg import norm
+        #  reset the r and v history
+        self.ntr.r_history = []
+        self.ntr.v_history = []
+        #  select and perform mission type
+        if self.mission_type == 'gto payload release, gto tank release':
+            pass
+        elif self.mission_type == 'gto payload release, nso tank release':
+            # ----------------
+            #    NSO -> GTO
+            # ----------------
+            self.ntr.transfer(self.target.r, self.target.v,
+                              Minimize_Energy = True)
+            #  based on the transfer calculation, compute the fuel burn
+            fuel_used = self.ntr.mass - tsiolkovsky(norm(self.ntr.dv1),
+                                                    self.ntr.nozzle.Isp,
+                                                    self.ntr.mass)
+            if self.DEBUG: print ('ntr Isp: %f ' %self.ntr.nozzle.Isp)
+            if self.DEBUG: print ('Fuel Available at Start: %8.5f ' %self.ntr.fuel)
+            if self.DEBUG: print ('Fuel Used: %8.5f' %fuel_used)
+            if self.DEBUG: print ('Fuel Remaining: %8.5f ' %(self.ntr.fuel - fuel_used))
+            #  store the burn history (i.e. fuel consumed at impulses)
+            self.history['burnmass'].append(fuel_used)
+            #  remove whatever fuel is left in mission tank and then
+            #+ subtract the rest from permanent tank
+            if self.ntr.tank[1].fuel >= fuel_used:
+                self.ntr.tank[1].remove_fuel(fuel_used)
+            else:
+                self.ntr.tank[0].remove_fuel(fuel_used - self.ntr.tank[1].fuel)
+                self.ntr.tank[1].remove_fuel(self.ntr.tank[1].fuel)
+            if self.DEBUG: print ('CHECK -> Fuel Remaining: %f ' %self.ntr.fuel)
+            # -------------------
+            #    GTO Insertion
+            # -------------------
+            fuel_used = self.ntr.mass - tsiolkovsky(norm(self.ntr.dv2),
+                                                    self.ntr.nozzle.Isp,
+                                                    self.ntr.mass)
+            if self.DEBUG: print ('ntr Isp: %f ' %self.ntr.nozzle.Isp)
+            if self.DEBUG: print ('Fuel Available at Start: %8.5f ' %self.ntr.fuel)
+            if self.DEBUG: print ('Fuel Used: %8.5f' %fuel_used)
+            if self.DEBUG: print ('Fuel Remaining: %8.5f ' %(self.ntr.fuel - fuel_used))
+            #  store the burn history (i.e. fuel consumed at impulses)
+            self.history['burnmass'].append(fuel_used)
+            #  remove whatever fuel is left in mission tank and then
+            #+ subtract the rest from permanent tank
+            if self.ntr.tank[1].fuel >= fuel_used:
+                self.ntr.tank[1].remove_fuel(fuel_used)
+            else:
+                self.ntr.tank[0].remove_fuel(fuel_used - self.ntr.tank[1].fuel)
+                self.ntr.tank[1].remove_fuel(self.ntr.tank[1].fuel)
+            #  dropoff the payload in GTO
+            self.ntr.remove_payload_mass(self.payload_mass)
+            if self.DEBUG: print ('CHECK -> Fuel Remaining: %f ' %self.ntr.fuel)
+            # ----------------
+            #    GTO -> NSO
+            # ----------------
+            fuel_used = self.ntr.mass - tsiolkovsky(norm(self.ntr.dv2),
+                                                    self.ntr.nozzle.Isp,
+                                                    self.ntr.mass)
+            if self.DEBUG: print ('ntr Isp: %f ' %self.ntr.nozzle.Isp)
+            if self.DEBUG: print ('Fuel Available at Start: %8.5f ' %self.ntr.fuel)
+            if self.DEBUG: print ('Fuel Used: %8.5f' %fuel_used)
+            if self.DEBUG: print ('Fuel Remaining: %8.5f ' %(self.ntr.fuel - fuel_used))
+            #  store the burn history (i.e. fuel consumed at impulses)
+            self.history['burnmass'].append(fuel_used)
+            #  remove whatever fuel is left in mission tank and then
+            #+ subtract the rest from permanent tank
+            if self.ntr.tank[1].fuel >= fuel_used:
+                self.ntr.tank[1].remove_fuel(fuel_used)
+            else:
+                self.ntr.tank[0].remove_fuel(fuel_used - self.ntr.tank[1].fuel)
+                self.ntr.tank[1].remove_fuel(self.ntr.tank[1].fuel)
+            if self.DEBUG: print ('CHECK -> Fuel Remaining: %f ' %self.ntr.fuel)
+            # -------------------
+            #    NSO Insertion
+            # -------------------
+            fuel_used = self.ntr.mass - tsiolkovsky(norm(self.ntr.dv1),
+                                                    self.ntr.nozzle.Isp,
+                                                    self.ntr.mass)
+            if self.DEBUG: print ('ntr Isp: %f ' %self.ntr.nozzle.Isp)
+            if self.DEBUG: print ('Fuel Available at Start: %8.5f ' %self.ntr.fuel)
+            if self.DEBUG: print ('Fuel Used: %8.5f' %fuel_used)
+            if self.DEBUG: print ('Fuel Remaining: %8.5f ' %(self.ntr.fuel - fuel_used))
+            #  store the burn history (i.e. fuel consumed at impulses)
+            self.history['burnmass'].append(fuel_used)
+            #  remove whatever fuel is left in mission tank and then
+            #+ subtract the rest from permanent tank
+            if self.ntr.tank[1].fuel >= fuel_used:
+                self.ntr.tank[1].remove_fuel(fuel_used)
+            else:
+                self.ntr.tank[0].remove_fuel(fuel_used - self.ntr.tank[1].fuel)
+                self.ntr.tank[1].remove_fuel(self.ntr.tank[1].fuel)
+            if self.DEBUG: print ('CHECK -> Fuel Remaining: %f ' %self.ntr.fuel)
+            #  transfer any additional fuel from the mission tank to the permanent
+            #+ tank if there is extra
+            if self.ntr.tank[1].fuel > 0:
+                fuel_that_can_be_added = self.ntr.tank[0].fuel_capacity - \
+                                         self.ntr.tank[0].fuel
+                if self.ntr.tank[1].fuel > fuel_that_can_be_added:
+                    self.ntr.tank[0].add_fuel(fuel_that_can_be_added)
+                    self.ntr.tank[1].remove_fuel(fuel_that_can_be_added)
+                else:
+                    self.ntr.tank[0].add_fuel(self.ntr.tank[1].fuel)
+                    self.ntr.tank[1].remove_fuel(self.ntr.tank[1].fuel)
+
+            #  dropoff the payload specific tank in NSO
+            self.ntr.remove_tank(1)
+    
+
+        #  flow NSO -> GTO trajectory and save state information
+        elif self.mission_type == 'geo payload release, geo tank release':
+            pass
+        elif self.mission_type == 'geo payload release, gto tank release':
+            pass
+        elif self.mission_type == 'geo payload release, nso tank release':
+            pass
 
 
 

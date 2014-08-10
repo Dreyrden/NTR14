@@ -29,25 +29,18 @@ sys.path.append('/Users/rynebeeson/Desktop/GitHub/NTR14/src/aerospace_toolbox')
 
 #  GA Calls Mission
 """ Can save results from each GA trial """
-#import missions
-#  payload parameters
-#payload_mass   = 1000.0
-#payload_height = 2.0
-#payload_radius = 2.0
 #  import Mission()
 from missions import Mission
 #  instantiate a mission
 mission = Mission()
 #  set mission payload attributes
-mission.payload_name = 'my_payload'
-mission.payload_mass = 1000.0
-mission.payload_height = 2.0
-mission.payload_radius = 2.0
-#  the global decision vector
-mission.global_decision_vector = [1, 0, 0]
-mission.set_global_decisions()
-#  call the global optimizer routine
-mission.global_optimization()
+payload_name = 'my_payload'
+payload_mass = 1000.0
+payload_height = 2.0
+payload_radius = 2.0
+mission.set_payload(payload_name, payload_mass, payload_height, payload_radius)
+#  call the global optimizer routine with a specified global decision vector
+mission.global_optimization([1, 0, 0])
 
 print '////////// EVALUATE MISSION //////////'
 mission.evaluate()
@@ -56,6 +49,8 @@ print '////////// MISSION GLOBAL DECISION VECTOR ///////////'
 print mission.global_decision_vector
 print '////////// MISSION LOCAL DECISION VECTOR ///////////'
 print mission.local_decision_vector
+print '////////// MISSION PROFIT /////////////'
+print mission.profit
 
 
 #mission = missions.main(1, 0, 0, payload_mass, payload_height, payload_radius)

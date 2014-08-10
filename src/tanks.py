@@ -6,9 +6,9 @@ class Tank:
     
     #  initialization method
     def __init__(self):
-        self.length = 0.0
+        self.tanklength = 0.0
         self.radius = 0.0
-        self.mass = 0.0
+        self.structural_mass = 0.0
         self.fuel = 0.0
 
 
@@ -38,14 +38,14 @@ class LH2Tank(Tank):
         self.parent.mass -= fuel_to_remove
         self.parent.fuel -= fuel_to_remove
 
-    def tank_size(self, geometry, radius, mli_layers):
+    def tank_size(self, radius, mli_layers, geometry = 'cylindrical'):
         '''Fuel must already have been added. Radius is the maximum constrained
         radius
 
         Usage:
         mission.ntr.add_tank()
         mission.ntr.tank[0].add_fuel(fuel_mass)
-        mission.ntr.tank[0].tank_size(max_radius)
+        mission.ntr.tank[0].tank_size(geometry, radius, mli_layers)
         '''
         
         self.radius = radius
@@ -116,30 +116,50 @@ class LH2Tank(Tank):
             
             self.structural_mass += 2*endcap_mass + cylinder_mass
             self.tanklength += cylinder_length + 2*endcap_ellipsoid_height
+            self.fuel_capacity = self.fuel
+            #  parent mass update
             self.parent.mass += self.structural_mass
+        
     
         elif geometry == 'spherical':
+    
+            self.radius = math.pow((total_tank_volume*3)/(4*math.pi),1/3)
             
-            tank_volume = (4/3)*math.pi*math.pow((self.radius),3)
-            if total_tank_volume < tank_volume:
-                self.radius = math.pow((total_tank_volume*3)/(4*math.pi),1/3)
-                
-                wall_thickness = (tank_pressure*self.radius)/(2*max_working_stress*welding_efficiency)
-                total_thickness = 25.4 + wall_thickness + self.mli_layers*1.243
-               	sphere_mass = (4*math.pi*math.pow(self.radius,2)*wall_thickness*tank_material_density)
-               	
-               	surface_area = 4*math.pi*math.pow(self.radius,2)
-                insulation_mass = surface_area*(0.78+0.015*self.mlilayers)
-                
-                self.structural_mass += sphere_mass + insulation_mass
-                self.tanklength += 2*self.radius
-                self.parent.mass += self.structural_mass
-                
-            else:
-                #SOME FORM OF ERROR        
+            wall_thickness = (tank_pressure*self.radius)/(2*max_working_stress*welding_efficiency)
+            total_thickness = 25.4 + wall_thickness + self.mli_layers*1.243
+            sphere_mass = (4*math.pi*math.pow(self.radius,2)*wall_thickness*tank_material_density)
+            
+            surface_area = 4*math.pi*math.pow(self.radius,2)
+            insulation_mass = surface_area*(0.78+0.015*self.mli_layers)
+            
+            self.structural_mass += sphere_mass + insulation_mass
+            self.tanklength += 2*self.radius
+            self.fuel_capacity = self.fuel
+            #  parent mass update
+            self.parent.mass += self.structural_mass
         
-        
-        else:  
+#            tank_volume = (4/3)*math.pi*math.pow((self.radius),3)
+#            if total_tank_volume < tank_volume:
+#                self.radius = math.pow((total_tank_volume*3)/(4*math.pi),1/3)
+#                
+#                wall_thickness = (tank_pressure*self.radius)/(2*max_working_stress*welding_efficiency)
+#                total_thickness = 25.4 + wall_thickness + self.mli_layers*1.243
+#               	sphere_mass = (4*math.pi*math.pow(self.radius,2)*wall_thickness*tank_material_density)
+#               	
+#               	surface_area = 4*math.pi*math.pow(self.radius,2)
+#                insulation_mass = surface_area*(0.78+0.015*self.mlilayers)
+#                
+#                self.structural_mass += sphere_mass + insulation_mass
+#                self.tanklength += 2*self.radius
+#                self.fuel_capacity = self.fuel
+#                #  parent mass update
+#                self.parent.mass += self.structural_mass
+#                
+#            else:
+#                pass
+#                #SOME FORM OF ERROR
+
+        else:
             print 'geometry selection error'
     
 #Testing Code

@@ -407,22 +407,23 @@ class SpaceCraft(SpaceBody):
         #  Override 'flight_time' if Minimize_Energy = True
         if Minimize_Energy:
             from utilities import create_one_list
-            from lambert import prussing_conway
+            from lambert   import prussing_conway
+            from numpy     import array
             ic0 = create_one_list([self.r, self.v], 0, 1)
             icf = create_one_list([target_position, target_velocity], 0, 1)
             #  find the minimum time for a lambert solution
             lambert_solution = prussing_conway(ic0, icf, self.Mu, \
-                                       FindMinEnergy = True, \
-                                       NonDimUnits = False, \
-                                       ScaleOutput = False)
+                                               FindMinEnergy = True, \
+                                               NonDimUnits = False, \
+                                               ScaleOutput = False)
             time_for_min_energy = lambert_solution['tm']
             #  use the minimum time as a flight time to compute
             #+ the lambert solution
             lambert_solution = prussing_conway(ic0, icf, self.Mu, \
-                                       TransferTime = time_for_min_energy, \
-                                       NonDimUnits = False, \
-                                       ScaleOutput = False)
-            from numpy import array
+                                               TransferTime = time_for_min_energy, \
+                                               NonDimUnits = False, \
+                                               ScaleOutput = False)
+            #  calculate the delta-v
             dv1_guess = list(lambert_solution['v1'] - array(ic0[2:4]))
             dv1_guess.append(0.0)
             flight_time = lambert_solution['time']
@@ -525,6 +526,21 @@ class NTR(SpaceCraft):
             newtank = Tank(self)
             self.tank.append(newtank)
             self.tanknames.append(newtank.name)
+
+    #  remove tanks "actually just subtracts tank mass from ntr"
+    #+ we leave the tank around so that we can do cost estimation later
+    def remove_tank(self, index):
+        self.mass -= self.tank[index].structural_mass
+        self.mass -= self.tank[index].fuel
+        self.fuel -= self.tank[index].fuel
+
+    #  add payload mass
+    def add_payload_mass(self, payload_mass):
+        self.mass += payload_mass
+    
+    #  remove payload mass
+    def remove_payload_mass(self, payload_mass):
+        self.mass -= payload_mass
 
 
 
