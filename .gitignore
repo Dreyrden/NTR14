@@ -37,3 +37,6 @@ nosetests.xml
 # ignores added by rb
 .DS_Store
 *.xcodeproj
+
+# ignore proprietary files
+*proprietary*
