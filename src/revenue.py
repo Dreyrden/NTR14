@@ -1,8 +1,7 @@
 #  owner: rg
-from launchvehicle import mass_to_orbit
 
 #  a function for calculating the mission revenue
-def calculate_revenue(mission):
+def calculate_revenue(parent):
     '''  mission is a Mission object with attribute
     #+ ntr, which is a SpaceCraft object
 
@@ -13,11 +12,11 @@ def calculate_revenue(mission):
         mission.launch_vehicle.mass_to_orbit
         mission.launch_vehicle.cost_per_mass
     '''
+    import launchvehicle
 
-
-    mission.revenue = 1
-    total_used_mass = mission.payload.mass + mission.fuel.mass
-    lv_mass_orbit_orbit = mass_to_orbit(mission)
-    free_mass = lv_mass_orbit_orbit - total_used_mass
-    mission.revenue = free_mass/mission.launch_vehicle.cost_per_mass
-
+    parent.revenue = 1
+    total_used_mass = parent.payload.mass + parent.fuel.mass
+    mass_to_orbit, cost = launchvehicle.mass_to_orbit(parent)
+    free_mass = mass_to_orbit - total_used_mass
+    cost_per_mass = cost/mass_to_orbit
+    parent.revenue = free_mass/cost_per_mass
