@@ -149,9 +149,7 @@ class LH2Tank(Tank):
         else:
             print 'geometry selection error'
 
-        M_array, M_ZBO, loss = power.tank_power(self.parent, mli_layers, surface_area, ZBO, spow, days)
-
-        self.zbo_power(self, surface_area)
+        zbo_power(self, surface_area)
 
 
     def zbo_power(self, surface_area):

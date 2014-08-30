@@ -7,7 +7,7 @@ def calculate_power(parent):
 
     # System Trade-Study Mass/Power Requirements
     system_power = 0.0
-    system_mass = 0.0
+    system_mass = 29 + 25  # Power Storage/Power Distribution
     parent.power += system_power
 
     orbital_parameter = 3.986E14
@@ -35,5 +35,34 @@ def calculate_power(parent):
     solar_panel_area = solar_panel_power/power_end_of_life
     solar_panel_mass = solar_panel_area*M_A
 
-    parent.mass += array_mass + system_mass
+    parent.mass += solar_panel_mass + system_mass
+
+def add_comms(parent):
+    '''
+    Assigns Masses & Power requirements of comm system
+    Call before calculate_power()
+    Includes contingency
+    '''
+    
+    comm_mass = 8 + 6 + 30
+    parent.mass += comm_mass
+      
+    
+def add_other_systems(parent):
+    '''
+    Adds masses for superstructure, C&DH, Docking, Contingencey, ACS
+    '''
+    superstructure = 150
+    rcs_tank = 12
+    rcs_thrusters = 60
+    rcs_lines_valves = 6
+    acs_supplement = 5
+    c_dh = 9.14
+    docking_interface = 157
+    docking_sensors = 8
+    contingency_mass = 25
+    contingency_power = 100
+    
+    parent.mass += superstructure + rcs_tank + rcs_thrusters + rcs_lines_valves + acs_supplement + c_dh + docking_interface + docking_sensors + contingency_mass   
+    parent.power += 29.03 + contingency_power
 

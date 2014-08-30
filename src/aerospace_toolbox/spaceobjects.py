@@ -509,6 +509,9 @@ class NTR(SpaceCraft):
         #  initialize a nozzle
         from nozzles import Nozzle
         self.nozzle = Nozzle(self)
+        # Initialise a dictionary to store further information not required
+        # by the whole class. Add using NTR.param.update({key:data})
+        self.param = {}
         #  initialize a structure
         #
         #  initialize an rcs system
